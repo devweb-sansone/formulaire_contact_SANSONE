@@ -23,6 +23,12 @@
         font-size: 18px;
         cursor: pointer;
     }
+    #loader {
+        display:none;
+        font-size:18px;
+        margin-top:20px;
+        color:#444;
+    }
 </style>
 </head>
 <body>
@@ -32,7 +38,7 @@
 <form id="formulaire">
 
     <label>Code client</label>
-    <input type="text" id="codeClient" required>
+    <input type="text" id="codeClient" readonly style="background:#eee;">
 
     <label>Plateforme choisie</label>
     <select id="plateforme" required>
@@ -52,6 +58,8 @@
     <input type="text" id="siret" required>
 
     <button type="button" onclick="envoyerTXT()">Envoyer</button>
+
+    <div id="loader">⏳ Envoi en cours, merci de patienter...</div>
 
 </form>
 
@@ -80,6 +88,9 @@ function envoyerTXT() {
         return;
     }
 
+    // Afficher le loader
+    document.getElementById("loader").style.display = "block";
+
     const contenu = `${code};${plateforme};${emailPA};${siret}`;
     const base64 = btoa(unescape(encodeURIComponent(contenu)));
 
@@ -90,13 +101,17 @@ function envoyerTXT() {
     })
     .then(r => r.text())
     .then(t => {
+        document.getElementById("loader").style.display = "none";
         if (t === "OK") {
             alert("Merci ! Vos informations ont été envoyées avec succès.");
         } else {
             alert("Une erreur est survenue : " + t);
         }
     })
-    .catch(err => alert("Erreur réseau : " + err));
+    .catch(err => {
+        document.getElementById("loader").style.display = "none";
+        alert("Erreur réseau : " + err);
+    });
 }
 </script>
 
