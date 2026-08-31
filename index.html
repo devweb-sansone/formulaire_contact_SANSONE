@@ -1,5 +1,98 @@
-<html>
-  <body>
-    Formulaire en cours de création
-  </body>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Formulaire Plateforme Facturation</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 40px;
+        max-width: 600px;
+    }
+    label { font-weight: bold; display: block; margin-top: 20px; }
+    input, select {
+        width: 100%;
+        padding: 8px;
+        margin-top: 5px;
+        font-size: 16px;
+    }
+    #emailPA { display: none; }
+    button {
+        margin-top: 30px;
+        padding: 12px 20px;
+        font-size: 18px;
+        cursor: pointer;
+    }
+</style>
+</head>
+<body>
+
+<h2>Plateforme de Facturation Électronique</h2>
+
+<form id="formulaire">
+
+    <label>Code client</label>
+    <input type="text" id="codeClient" required>
+
+    <label>Plateforme choisie</label>
+    <select id="plateforme" required>
+        <option value="">-- Sélectionnez --</option>
+        <option value="PPF">PPF</option>
+        <option value="PDP">PDP</option>
+        <option value="AUTRE">Autre</option>
+        <option value="AUCUNE">Aucune / pas encore choisi</option>
+    </select>
+
+    <div id="emailPA">
+        <label>Adresse électronique de la plateforme (si PDP)</label>
+        <input type="email" id="adressePA">
+    </div>
+
+    <label>SIRET</label>
+    <input type="text" id="siret" required>
+
+    <button type="button" onclick="genererTXT()">Générer le fichier TXT</button>
+
+</form>
+
+<script>
+// Préremplir le code client via l’URL
+const params = new URLSearchParams(window.location.search);
+if (params.has("code")) {
+    document.getElementById("codeClient").value = params.get("code");
+}
+
+// Afficher le champ email si PDP
+document.getElementById("plateforme").addEventListener("change", function() {
+    document.getElementById("emailPA").style.display =
+        (this.value === "PDP") ? "block" : "none";
+});
+
+// Génération du fichier TXT
+function genererTXT() {
+    const code = document.getElementById("codeClient").value.trim();
+    const plateforme = document.getElementById("plateforme").value.trim();
+    const emailPA = document.getElementById("adressePA").value.trim();
+    const siret = document.getElementById("siret").value.trim();
+
+    if (!code || !plateforme || !siret) {
+        alert("Veuillez remplir tous les champs obligatoires.");
+        return;
+    }
+
+    const contenu = `${code};${plateforme};${emailPA};${siret}`;
+    const blob = new Blob([contenu], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `client_${code}.txt`;
+    a.click();
+
+    URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
 </html>
+
