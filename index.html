@@ -51,7 +51,7 @@
     <label>SIRET</label>
     <input type="text" id="siret" required>
 
-    <button type="button" onclick="genererTXT()">Générer le fichier TXT</button>
+    <button type="button" onclick="envoyerTXT()">Envoyer</button>
 
 </form>
 
@@ -68,8 +68,8 @@ document.getElementById("plateforme").addEventListener("change", function() {
         (this.value === "PDP") ? "block" : "none";
 });
 
-// Génération du fichier TXT
-function genererTXT() {
+// Envoi du fichier TXT vers Google Apps Script
+function envoyerTXT() {
     const code = document.getElementById("codeClient").value.trim();
     const plateforme = document.getElementById("plateforme").value.trim();
     const emailPA = document.getElementById("adressePA").value.trim();
@@ -81,18 +81,24 @@ function genererTXT() {
     }
 
     const contenu = `${code};${plateforme};${emailPA};${siret}`;
-    const blob = new Blob([contenu], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
+    const base64 = btoa(unescape(encodeURIComponent(contenu)));
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `client_${code}.txt`;
-    a.click();
-
-    URL.revokeObjectURL(url);
+    fetch("https://script.google.com/macros/s/AKfycbxoE4la7XmZy0lwzDx4-hEAlaB4XZh6kNDcnuerlK-ic_0xeBk4F4JI1F1sCWrQAMW4bQ/exec", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `file=${base64}&filename=client_${code}.txt`
+    })
+    .then(r => r.text())
+    .then(t => {
+        if (t === "OK") {
+            alert("Merci ! Vos informations ont été envoyées avec succès.");
+        } else {
+            alert("Une erreur est survenue : " + t);
+        }
+    })
+    .catch(err => alert("Erreur réseau : " + err));
 }
 </script>
 
 </body>
 </html>
-
