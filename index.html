@@ -114,6 +114,16 @@
 
     #emailPA { display: none; }
 
+    #siretStatus {
+        font-size: 12.5px;
+        margin-top: 7px;
+        line-height: 1.5;
+        display: none;
+    }
+    #siretStatus.checking { color: var(--sansone-grey); display: block; }
+    #siretStatus.valid { color: #2e7d32; display: block; }
+    #siretStatus.invalid { color: #b3261e; display: block; }
+
     button {
         display: block;
         margin: 34px auto 0;
@@ -132,6 +142,10 @@
     button:hover {
         background-color: var(--sansone-gold-dark);
     }
+    button:disabled {
+        background-color: #c9c0a3;
+        cursor: not-allowed;
+    }
     button:active {
         transform: translateY(1px);
     }
@@ -145,7 +159,7 @@
     }
 
     .site-footer {
-        text-align: left;
+        text-align: center;
         font-size: 13px;
         color: #78787a;
         background: #232323;
@@ -196,7 +210,8 @@
         </div>
 
         <label>SIRET</label>
-        <input type="text" id="siret" required>
+        <input type="text" id="siret" inputmode="numeric" pattern="[0-9]{14}" maxlength="14" placeholder="14 chiffres, sans espace" required>
+        <div id="siretStatus"></div>
 
         <button type="button" onclick="envoyerTXT()">Envoyer</button>
         <div id="loader">⏳ Envoi en cours, merci de patienter...</div>
@@ -220,6 +235,86 @@ document.getElementById("plateforme").addEventListener("change", function() {
         (this.value === "PDP") ? "block" : "none";
 });
 
+// ===== Contrôle du SIRET =====
+const siretInput = document.getElementById("siret");
+const siretStatus = document.getElementById("siretStatus");
+let siretExistenceCheckId = 0;
+
+// N'autoriser que la saisie de chiffres, 14 caractères maximum
+siretInput.addEventListener("input", function() {
+    this.value = this.value.replace(/\D/g, "").slice(0, 14);
+    siretStatus.className = "";
+    siretStatus.textContent = "";
+
+    if (this.value.length === 14) {
+        verifierSiret(this.value);
+    }
+});
+
+// Clé de contrôle officielle du SIRET (algorithme de Luhn)
+function siretCleValide(siret) {
+    // Exception historique reconnue par l'INSEE : La Poste (SIREN 356000000)
+    if (siret.startsWith("356000000")) return true;
+    let somme = 0;
+    for (let i = 0; i < siret.length; i++) {
+        let chiffre = parseInt(siret[siret.length - 1 - i], 10);
+        if (i % 2 === 1) {
+            chiffre *= 2;
+            if (chiffre > 9) chiffre -= 9;
+        }
+        somme += chiffre;
+    }
+    return somme % 10 === 0;
+}
+
+// Vérification de l'existence du SIRET.
+// L'API publique de l'État (recherche-entreprises.api.gouv.fr) ne peut pas être
+// appelée directement depuis le navigateur (CORS refusé côté gouv.fr). On passe
+// donc par votre Google Apps Script, qui relaie la requête côté serveur.
+// -> Nécessite d'ajouter la fonction doGet() fournie séparément dans votre script,
+//    puis de redéployer (Déployer > Gérer les déploiements > Nouvelle version).
+// Tant que ce n'est pas fait, cette vérification ne fait simplement rien
+// (aucune erreur visible) : seuls le format et la clé de contrôle restent actifs.
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxoE4la7XmZy0lwzDx4-hEAlaB4XZh6kNDcnuerlK-ic_0xeBk4F4JI1F1sCWrQAMW4bQ/exec";
+
+function verifierSiret(siret) {
+    if (!siretCleValide(siret)) {
+        siretStatus.className = "invalid";
+        siretStatus.textContent = "⚠ Ce numéro de SIRET semble invalide (clé de contrôle incorrecte). Merci de le vérifier.";
+        return;
+    }
+
+    siretStatus.className = "checking";
+    siretStatus.textContent = "Vérification du SIRET en cours...";
+
+    const requeteId = ++siretExistenceCheckId;
+
+    fetch(`${APPS_SCRIPT_URL}?action=checkSiret&siret=${siret}`)
+        .then(r => r.json())
+        .then(data => {
+            if (requeteId !== siretExistenceCheckId) return; // réponse obsolète
+
+            if (!data.ok) {
+                siretStatus.className = "";
+                siretStatus.textContent = "";
+                return;
+            }
+            if (data.found) {
+                siretStatus.className = "valid";
+                siretStatus.textContent = `✓ SIRET reconnu : ${data.nom}`;
+            } else {
+                siretStatus.className = "invalid";
+                siretStatus.textContent = "⚠ SIRET introuvable dans la base officielle. Merci de vérifier votre saisie.";
+            }
+        })
+        .catch(() => {
+            // Apps Script pas encore mis à jour, ou indisponible : on n'affiche rien
+            if (requeteId !== siretExistenceCheckId) return;
+            siretStatus.className = "";
+            siretStatus.textContent = "";
+        });
+}
+
 // Envoi du fichier TXT vers Google Apps Script
 function envoyerTXT() {
     const code = document.getElementById("codeClient").value.trim();
@@ -232,6 +327,18 @@ function envoyerTXT() {
         return;
     }
 
+    if (!/^\d{14}$/.test(siret)) {
+        alert("Le SIRET doit contenir exactement 14 chiffres.");
+        return;
+    }
+
+    if (!siretCleValide(siret)) {
+        alert("Ce numéro de SIRET semble invalide (clé de contrôle incorrecte). Merci de le vérifier avant d'envoyer.");
+        return;
+    }
+
+    const bouton = document.querySelector("button");
+    bouton.disabled = true;
     document.getElementById("loader").style.display = "block";
 
     const contenu = `${code};${plateforme};${emailPA};${siret}`;
@@ -245,6 +352,7 @@ function envoyerTXT() {
     .then(r => r.text())
     .then(t => {
         document.getElementById("loader").style.display = "none";
+        bouton.disabled = false;
         if (t === "OK") {
             alert("Merci ! Vos informations ont été envoyées avec succès.");
         } else {
@@ -253,6 +361,7 @@ function envoyerTXT() {
     })
     .catch(err => {
         document.getElementById("loader").style.display = "none";
+        bouton.disabled = false;
         alert("Erreur réseau : " + err);
     });
 }
