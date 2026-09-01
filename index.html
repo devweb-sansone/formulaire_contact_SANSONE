@@ -189,19 +189,26 @@
 
 <div class="form-wrapper">
     <form id="formulaire">
+        <label>Client</label>
+        <input type="text" id="nomClient" readonly>
+
         <label>Code client</label>
         <input type="text" id="codeClient" readonly>
 
         <label>Plateforme choisie</label>
+        <p class="hint" style="margin-top:0;">
+            Il s’agit du service que vous utilisez (ou utiliserez) pour recevoir vos factures électroniques.
+        </p>
         <select id="plateforme" required>
             <option value="">-- Sélectionnez --</option>
-            <option value="PDP">PDP (Plateforme agréée)</option>
-            <option value="OD">OD (Opérateur de Dématérialisation)</option>
-            <option value="AUCUNE">Aucune / Pas encore choisi</option>
+            <option value="PDP">Une plateforme agréée par l’État (PDP)</option>
+            <option value="OD">Mon logiciel de facturation habituel (OD)</option>
+            <option value="AUCUNE">Je ne sais pas encore</option>
         </select>
         <p class="hint">
-            Exemples de PDP : Cegid, Generix, DBE, Yooz<br>
-            Exemples d’OD : Pennylane, Sage, Tiime, Evoliz, Sellsy
+            Plateformes agréées (PDP) : Cegid, Generix, DBE, Yooz…<br>
+            Logiciels de facturation (OD) : Pennylane, Sage, Tiime, Evoliz, Sellsy…<br>
+            Vous ne savez pas ? Choisissez simplement « Je ne sais pas encore ».
         </p>
 
         <div id="emailPA">
@@ -224,10 +231,13 @@
 </div>
 
 <script>
-// Preréemplir le code client via l’URL
+// Préremplir le code client et le nom du client via l’URL
 const params = new URLSearchParams(window.location.search);
 if (params.has("code")) {
     document.getElementById("codeClient").value = params.get("code");
+}
+if (params.has("nom")) {
+    document.getElementById("nomClient").value = params.get("nom");
 }
 
 // Afficher le champ email si PDP
